@@ -1,0 +1,345 @@
+# url：https://www.yuque.com/sunxiaping/yg511q/hg3u04
+
+# 网络工具
+yum update -y
+yum install net-tools -y
+
+# 版本至少在7.5以上
+cat /etc/redhat-release
+
+# 关闭防火墙
+systemctl stop firewalld
+systemctl disable firewalld
+
+# 关闭selinux
+getenforce
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/g' /etc/selinux/config
+sed -i 's/enforcing/disabled/' /etc/selinux/config
+setenforce 0
+
+# 关闭swap
+swapoff -a
+sed -ri 's/.*swap.*/#&/' /etc/fstab
+
+# 设置主机名
+#hostnamectl set-hostname <hostname>
+
+# 在master添加hosts，主机名解析
+# 企业中推荐使用内部的DNS服务器
+cat >> /etc/hosts << EOF
+192.168.1.41 mastercentos
+192.168.1.54 nodecentosfirst
+192.168.1.53 nodecentossecond
+EOF
+cat /etc/hosts
+cat /etc/sysctl.d/k8s.conf
+# 将桥接的IPv4流量传递到iptables的链
+cat > /etc/sysctl.d/k8s.conf << EOF
+net.bridge.bridge-nf-call-ip6tables = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.ipv4.ip_forward = 1
+vm.swappiness = 0
+EOF
+
+# 加载br_netfilter模块
+modprobe br_netfilter
+
+# 查看是否加载
+lsmod | grep br_netfilter
+
+# 生效
+sysctl --system
+
+# 时间同步
+yum install ntpdate -y
+ntpdate time.windows.com
+
+# 开启ipvs
+yum -y install ipset ipvsadm
+
+cat > /etc/sysconfig/modules/ipvs.modules <<EOF
+#!/bin/bash
+modprobe -- ip_vs
+modprobe -- ip_vs_rr
+modprobe -- ip_vs_wrr
+modprobe -- ip_vs_sh
+modprobe -- nf_conntrack_ipv4
+EOF
+
+# 授权、运行、检查是否加载
+chmod 755 /etc/sysconfig/modules/ipvs.modules && bash /etc/sysconfig/modules/ipvs.modules && lsmod | grep -e ip_vs -e nf_conntrack_ipv4
+
+# 检查是否加载
+lsmod | grep -e ipvs -e nf_conntrack_ipv4
+
+# 重启
+reboot
+
+# 卸载旧版本
+yum remove docker \
+    docker-client \
+    docker-client-latest \
+    docker-common \
+    docker-latest \
+    docker-latest-logrotate \
+    docker-logrotate \
+    docker-selinux \
+    docker-engine-selinux \
+    docker-engine
+rm -rf /var/lib/docker && rm -rf /var/run/docker
+	
+# 删除跳转安装moby-engine
+yum remove moby-engine -y
+cd /etc/yum.repos.d/
+rm -rf microsoft-prod.repo
+cd ~
+	
+yum install -y yum-utils \
+ device-mapper-persistent-data \
+ lvm2
+ 
+yum-config-manager --add-repo \
+ https://download.docker.com/linux/centos/docker-ce.repo
+ 
+yum-config-manager  --add-repo \
+ https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
+
+# 更新yum软件包索引
+yum makecache fast
+
+# 安装最新稳定版本的docker
+yum install -y docker-ce
+
+# 配置阿里云镜像加速器
+mkdir -p /etc/docker
+
+tee /etc/docker/daemon.json <<-'EOF'
+{
+ "registry-mirrors": ["https://hgdb8dd9.mirror.aliyuncs.com"]
+}
+EOF
+
+# 启动docker引擎并设置开机启动
+systemctl start docker && systemctl enable docker
+# systemctl stop docker
+
+docker version
+
+# 配置当前用户对docker的执行权限
+groupadd docker
+gpasswd -a ${USER} docker
+systemctl restart docker
+
+docker info
+ Logging Driver: json-file
+ -> Cgroup Driver: cgroupfs
+ Cgroup Version: 1
+
+# docker和kubelet的cgroup driver需要一致，如果docker不是cgroupfs，则执行
+cat << EOF > /etc/docker/daemon.json
+{
+  "exec-opts": ["native.cgroupdriver=cgroupfs"],
+  "registry-mirrors": ["https://hgdb8dd9.mirror.aliyuncs.com"], 
+  "live-restore": true,
+  "log-driver":"json-file",
+  "log-opts": {"max-size":"500m", "max-file":"3"}
+}
+EOF
+
+# tee /etc/docker/daemon.json <<-'EOF'
+# {
+#   "exec-opts": ["native.cgroupdriver=systemd"], 
+#   "registry-mirrors": ["https://hgdb8dd9.mirror.aliyuncs.com"], 
+#   "live-restore": true,
+#   "log-driver":"json-file",
+#   "log-opts": {"max-size":"500m", "max-file":"3"}
+# }
+# EOF
+
+systemctl daemon-reload && systemctl restart docker
+
+
+#修改文件权限
+chmod 666 /var/run/docker.sock
+
+# 查看日志状态
+systemctl status docker.service
+
+
+# 添加阿里云的YUM软件源
+cat > /etc/yum.repos.d/kubernetes.repo << EOF
+[kubernetes]
+name=Kubernetes
+baseurl=https://mirrors.aliyun.com/kubernetes/yum/repos/kubernetes-el7-x86_64
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+gpgkey=https://mirrors.aliyun.com/kubernetes/yum/doc/yum-key.gpg https://mirrors.aliyun.com/kubernetes/yum/doc/rpm-package-key.gpg
+EOF
+
+# 查看kubelet版本
+yum list kubelet --showduplicates | sort -r
+
+# 安装kubeadm、kubelet和kubectl
+# -1.22.0 修改成对应版本，保持一致
+yum install -y kubelet-1.22.0 kubeadm-1.22.0 kubectl-1.22.0
+
+
+# 实现Docker使用的cgroup drvier和kubelet使用的cgroup drver一致
+# 通过dockers info 命令查看 cgroup drvier
+
+vi /etc/sysconfig/kubelet
+
+# 修改，对应docker cgroup drvier
+KUBELET_EXTRA_ARGS="--cgroup-driver=cgroupfs"
+KUBE_PROXY_MODE="ipvs"
+
+# KUBELET_EXTRA_ARGS="--cgroup-driver=systemd"
+# KUBE_PROXY_MODE="ipvs"
+
+# 设置开机自启动
+systemctl enable kubelet && systemctl start kubelet
+
+# 查看k8s所需镜像
+kubeadm config images list
+
+# 部署k8s的Master节点
+# 通过命令初始化
+kubeadm init \
+  --apiserver-advertise-address=192.168.1.41 \
+  --image-repository registry.aliyuncs.com/google_containers \
+  --kubernetes-version v1.22.0 \
+  --service-cidr=10.96.0.0/12 \
+  --pod-network-cidr=10.244.0.0/16
+
+•	--apiserver-advertise-address 集群通告地址，master ip 
+•	--kubernetes-version K8s版本，与上面安装的一致
+•	--service-cidr 集群内部虚拟网络，Pod统一访问入口
+•	--pod-network-cidr Pod网络，，与下面部署的CNI网络组件yaml中保持一致
+
+# 通过配置文件初始化
+# vi kubeadm.conf
+# apiVersion: kubeadm.k8s.io/v1beta2
+# kind: ClusterConfiguration
+# kubernetesVersion: v1.22.0
+# imageRepository: registry.aliyuncs.com/google_containers 
+# networking:
+#   podSubnet: 10.244.0.0/16 
+#   serviceSubnet: 10.96.0.0/12 
+
+# kubeadm init --config kubeadm.conf --ignore-preflight-errors=all 
+
+# 根据提示消息，在Master节点上使用kubectl工具
+mkdir -p $HOME/.kube
+sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+  
+
+kubeadm join 192.168.1.41:6443 --token cgbz9a.9eni5sjx2kiyaz7z --discovery-token-ca-cert-hash sha256:9a8601e52915eacc105a6e2b5d6aaff6259604fa3f8e4bdd41c0e8dcf0dc8f67
+
+# 加入Kubernetes Node
+# token有效期为24小时
+kubeadm token create --print-join-command
+
+kubeadm join 192.168.1.41:6443 --token uzgkv2.npr38fk2c96maosm --discovery-token-ca-cert-hash sha256:9a8601e52915eacc105a6e2b5d6aaff6259604fa3f8e4bdd41c0e8dcf0dc8f67 
+
+# 生成一个永不过期的token
+# kubeadm token create --ttl 0 --print-join-command
+
+
+# 部署CNI网络插件
+# kubernetes支持多种网络插件，比如flannel、calico、canal等
+
+# flannel插件，二选一
+vim /etc/hosts
+# 添加
+199.232.68.133 raw.githubusercontent.com
+151.101.76.133 raw.githubusercontent.com
+151.101.0.133 raw.githubusercontent.com
+
+# 下载&启动flannel
+# wget https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+# kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+# Calico插件，二选一
+# 下载YAML
+wget https://docs.projectcalico.org/manifests/calico.yaml
+kubectl apply -f calico.yaml
+
+# 健康检查时，scheduler和controller-manager的端口并未开放，状态为unhealthy，执行下面对应命令
+# sed -i 's/- --port=0/#- --port=0/g' /etc/kubernetes/manifests/kube-scheduler.yaml 
+# sed -i 's/- --port=0/#- --port=0/g' /etc/kubernetes/manifests/kube-controller-manager.yaml 
+# systemctl restart kubelet.service
+
+# 查看部署CNI网络
+kubectl get pods -n kube-system
+
+# 在Master节点使用kubectl工具查看节点状态
+kubectl get nodes
+
+# 查看集群健康状况
+kubectl get cs
+kubectl cluster-info
+
+
+# 部署 Dashboard 拿到最新版，更改版本号
+# https://github.com/kubernetes/dashboard/releases
+wget https://raw.githubusercontent.com/kubernetes/dashboard/v2.3.1/aio/deploy/recommended.yaml
+
+# 默认Dashboard只能集群内部访问，修改Service为NodePort类型，暴露到外部：
+vim recommended.yaml
+...
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: kubernetes-dashboard
+  name: kubernetes-dashboard
+  namespace: kubernetes-dashboard
+spec:
+  ports:
+    - port: 443
+      targetPort: 8443
+      nodePort: 30001
+  selector:
+    k8s-app: kubernetes-dashboard
+  type: NodePort
+...
+
+kubectl apply -f recommended.yaml
+kubectl get pods -n kubernetes-dashboard
+
+# 访问地址：https://NodeIP:30001
+# 创建service account并绑定默认cluster-admin管理员集群角色：
+
+# 创建用户
+kubectl create serviceaccount dashboard-admin -n kube-system
+# 用户授权
+kubectl create clusterrolebinding dashboard-admin --clusterrole=cluster-admin --serviceaccount=kube-system:dashboard-admin
+# 获取用户Token
+kubectl describe secrets -n kube-system $(kubectl -n kube-system get secret | awk '/dashboard-admin/{print $1}')
+
+# 删除角色信息
+# kubectl delete serviceaccount dashboard-admin  -n kubernetes-dashboard
+# kubectl delete clusterrolebinding dashboard-admin
+
+ca.crt:     1099 bytes
+namespace:  11 bytes
+token:      eyJhbGciOiJSUzI1NiIsImtpZCI6Ing2cjN1RGZfSzgwTDA2RTJ0eFBqLWlBNDVEWTJKQndORXI5V1JrVU45UGsifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJrdWJlLXN5c3RlbSIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VjcmV0Lm5hbWUiOiJkYXNoYm9hcmQtYWRtaW4tdG9rZW4teDZ0Y2QiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlcnZpY2UtYWNjb3VudC5uYW1lIjoiZGFzaGJvYXJkLWFkbWluIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiZjQyMmM1YzAtZWM1Ni00NGI1LTlmNjQtNzczODE5OGQ4MjViIiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50Omt1YmUtc3lzdGVtOmRhc2hib2FyZC1hZG1pbiJ9.oNrYs74914oO5YrcjoVXJfpr8hbsYfyrYaImgF0wFMZdHhBF7_PnIE0CDc9pbu3KN_IdUi7tPz-n27sdzFK-BVB-7DtqUIqTDUbE-Z1qrtzsBBT1_koFBCRVw7DZy3230J3cuWH_EG1upZsXyiM0BY1ePnGePOVnTU9aYmFR1JabBCqltENQ3O7FNGzYoLqPS0IXoDO7hppdqo2Ud6QT_IOBX2CEG2BCfeMhIVlgp5GiRH3UYg9pE2ellCvE6c5WTQ849r12caHZRkHlZFy16EraZSU_3tJG7_zbfwjHif4hgf1oPJ6P-xE6WyajrTT-oWY9Lt08GC5NZf0GiNCg6A
+
+
+使用输出的token登录Dashboard
+
+#url
+https://192.168.1.41:30001/#/login
+
+
+# kubernetes中kubectl命令自动补全
+yum install -y bash-completion
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+echo “source <(kubectl completion bash)” >> ~/.bashrc
+vim /root/.bashrc
+source /usr/share/bash-completion/bash_completion
+source <(kubectl completion bash)
+ 
