@@ -343,3 +343,27 @@ vim /root/.bashrc
 source /usr/share/bash-completion/bash_completion
 source <(kubectl completion bash)
  
+# kubernetes 重置
+
+# 在master,node节点执行kubeadm reset，清除环境
+kubeadm reset -y
+
+# 新IP
+kubeadm init \
+  --apiserver-advertise-address=192.168.9.168 \
+  --image-repository registry.aliyuncs.com/google_containers \
+  --kubernetes-version v1.22.0 \
+  --service-cidr=10.96.0.0/12 \
+  --pod-network-cidr=10.244.0.0/16
+
+# 根据提示消息，在Master节点上使用kubectl工具
+mkdir -p $HOME/.kube
+  sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+  sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+
+#回到前面安装网络，添加子节点
+
+# 重启
+service docker restart
+service kubelet restart
