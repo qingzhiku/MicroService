@@ -281,6 +281,8 @@ kubectl get nodes
 kubectl get cs
 kubectl cluster-info
 
+# 设置k8s默认命名空间
+kubectl config set-context default --namespace=${work_namespace}
 
 # 部署 Dashboard 拿到最新版，更改版本号
 # https://github.com/kubernetes/dashboard/releases
