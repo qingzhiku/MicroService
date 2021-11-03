@@ -1,0 +1,50 @@
+# 方法一：在线安装
+wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash
+
+# 方法二：二进制文件安装
+# 文件地址 dapr: https://github.com/dapr/dapr/releases
+# CLI : https://github.com/dapr/cli/releases/
+# 从cli地址下载 dapr_linux_arm64.tar.gz
+
+# 解压到/usr/local/bin 也有放到/usr/bin
+tar xf daprd_linux_arm64.tar.gz -C /usr/local/bin
+
+# 删除文件
+rm -f daprd_linux_arm64.tar.gz
+
+# 进入/usr/bin
+cd /usr/local/bin
+
+# 查看文件
+ll | grep dapr
+
+# 添加执行权限
+chmod +x ./dapr
+
+# 防止已经安装过，删除信息
+# 从k8s中卸载dapr
+dapr uninstall -k
+
+# 查看应用运行列表
+dapr list -k
+
+# 删除应用
+cd /root/dapr/k8s
+./stop-all.sh
+
+# 检查集群，有master和node节点才算正常
+kubectl get nodes
+
+# 初始化dapr到集群
+dapr init -k
+
+kubectl get po
+
+
+# 验证dapr是否安装成功
+# 1、检查状态是否安装成功，dapr-sentry、dapr-operator、dapr-sidecar-injector
+# dapr-dashboard、dapr-placement-server这五个应用都是都是runing
+dapr status -k
+
+# 2、验证边车存在
+dapr list -k
