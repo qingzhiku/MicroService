@@ -1,0 +1,9 @@
+1、download
+url:https://www.proxmox.com/en/downloads
+version:proxmox-ve_7.1-2.iso
+
+2、write diver image with ultralISO
+
+step:open ultraliso -> start -> write diver image
+
+3、install hardware pc
