@@ -1,4 +1,6 @@
-1、download
+pve  install  in hardware pc 
+
+1、download image
 url:https://www.proxmox.com/en/downloads
 version:proxmox-ve_7.1-2.iso
 
@@ -6,4 +8,34 @@ version:proxmox-ve_7.1-2.iso
 
 step:open ultraliso -> start -> write diver image
 
-3、install hardware pc
+3、insert usb   &   bios set
+
+enable vt or vt-d
+
+select boot
+
+4、start pc
+
+5、select first option " install proxmox ve "
+
+6、next-> -> -> -> 
+
+7、target harddisk
+
+8、country->china   time zone->shanghai  keyboard layout u.s.
+
+9、set password  and e-mail(can custom)
+
+10、set hostname  (eg.pve1.xxx.com) and set network and ip -> next
+
+11、next-> -> -> -> wait....
+
+12、open web console
+
+eg:https://192.168.1.9:8006
+
+schemas:https
+port:8006
+
+
+
