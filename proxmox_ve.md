@@ -441,9 +441,116 @@ net.ipv6.conf.vmbr0.autoconf=1
 ```shell
 service networking restart
 ```
+## 二、禁用 IPv6  
+
+```shell
+nano /etc/sysctl.conf
+
+# 在文件中追加/修改为 = 1
+net.ipv6.conf.all.disable_ipv6 = 1     #禁用整个系统所有接口的IPv6
+net.ipv6.conf.default.disable_ipv6 = 1
+
+# 使生效
+sysctl -p /etc/sysctl.conf
+```
+
+## 二、桥接VLAN
+
+1、交换机802.1Q VLAN设置
+关闭交换机中二层交换的DHCP侦听
+假设交换机是5口
+```shell
+port：  。  。  。  。  。
+num：   1   2   3   4   5
+```
+划分方案：
+|vlan|成员端口|Tagged端口|Untagged端口|用于|
+|-|-|-|-|-|
+|1|1||1|主干|
+|10|1-2|1|2|wan1|
+|20|1,3-5|1|3-5|lan1|
 
 
-# 第四节：存储  
+2、PVE桥接vlan  
+
+桥接步骤：
+> 位置：节点 -> 系统 -> 网络
+> 网卡（eg.enp1s0）
+> 创建
+> Linux Bridge
+> 命名(格式：[名称(vmbr[n])].[pvid]) eg.:vmbr2.10/vmbr3.20
+> 保存
+
+## 三、PVE使用无线网卡  
+
+1、查看当前系统的网络接口
+```shell
+cat /etc/network/interfaces
+
+返回：
+auto lo
+iface lo inet loopback
+
+iface enp1s0 inet manual
+
+auto vmbr0
+iface vmbr0 inet static
+	address 192.168.1.9/24
+	gateway 192.168.1.1
+	bridge-ports enp1s0
+	bridge-stp off
+	bridge-fd 0
+
+
+iface wlp3s0 inet manual
+```
+
+2、配置无线网卡
+```shell
+apt install net-tools wireless-tools wpasupplicant
+
+# 查看，如不出现，重启再试
+iwconfig
+
+lo        no wireless extensions.
+
+enp4s0    no wireless extensions.
+
+wlp5s0    IEEE 802.11  ESSID:off/any  
+          Mode:Managed  Access Point: Not-Associated   Tx-Power=0 dBm   
+          Retry short limit:7   RTS thr:off   Fragment thr:off
+          Encryption key:off
+          Power Management:on
+          
+vmbr0     no wireless extensions.
+```
+3、配置无线网络
+```shell
+# 启动网卡
+ifconfig wlp3s0 up
+
+# 搜索无线网络
+iwlist wlp5s0 scan
+
+# 生成网络配置
+wpa_passphrase <WIFI_NAME> <WIFI_PASSWORD> > /etc/wpa_supplicant/wpa_supplicant.conf
+
+# 添加到当前的系统网络接口
+echo 'auto wlp3s0
+iface wlp5s0 inet dhcp
+wpa-conf /etc/wpa_supplicant/wpa_supplicant.conf' >> /etc/network/interfaces
+
+# 重启系统网络服务
+service networking restart
+
+# 查看网络接口
+iwconfig
+
+# 查看无线网络都连上了网
+ifconfig
+```
+
+# 第五节：存储  
 
 挂载磁盘方式：  
 > 本地磁盘：目录（常用）、LVM、ZFS  
@@ -488,13 +595,71 @@ df -Th
 ```  
 
 5、修改一下储存配置：删除web界面local-lvm(即lvm-thin)  
-~~~javascript
+```javascript
 // 路径 
 数据中心 -> 存储-local -> lvm -> 删除
 
 //编辑local
 目录 -> 内容 -> 添加 -> 磁盘映像和容器
-~~~
+```
+
+## 三）初始化新磁盘  
+1、查看选磁盘列表  
+```mermaid
+graph LR
+a1(插入磁盘/USB) -.-> 
+a2(选节点上的磁盘选项) -.-> 
+a3(磁盘设备列表)
+```
+
+2、使用GPT初始化磁盘  
+```mermaid
+graph LR
+a1(磁盘设备列表) -.->
+a2(选择设备) -.->
+a3(擦除磁盘) -.->
+a4(使用GPT初始化磁盘)
+```
+3、挂载磁盘,推荐目录
+ 
+```mermaid
+graph LR
+a1(选中节点磁盘选项)
+b1(LVM)
+c1(LVM-Thin)
+d1(目录&lt推荐&gt)
+e1(ZFS)
+
+a1-.->b1
+a1-.->c1
+a1-.->d1
+a1-.->e1
+
+b2(创建:Volume Group)
+b1-.->b2
+
+c2(创建:Thinpool)
+c1-.->c2
+
+d2(创建:创建目录)
+d1-.->d2
+
+e2(创建:ZFS)
+e1-.->e2
+
+a2(填写磁盘名称等信息)
+b2-.->a2
+c2-.->a2
+d2-.->a2
+e2-.->a2
+
+a3(创建)
+a2-.->a3
+```
+
+4、再次查看磁盘状态  
+
+可以看到磁盘已经挂载就绪了
 
 
 
