@@ -281,15 +281,9 @@ subgraph 虚拟机
 
     1-.找出.->引导顺序-.处理.->弹窗
 end
-
-
-
-
-
-
 ```  
 
-## 三、OPenwrt初步设置  
+## 三、Openwrt初步设置  
 ### 1、调整磁盘大小 
 ```mermaid
 flowchart 
@@ -309,19 +303,21 @@ end
 *`磁盘大小建议5G以上`*  
 
 ### 2、配置IP 
-启动OP软路由，修改lan口IP为设置的IP。
+启动OP软路由，修改lan口IP为设置的IP、网关和DNS。
 
 ```shell
 # 修改一下openwrt的IP地址  
 vi /etc/config/network 
 
-# 如192.168.8.5，后面会作为旁路由网关使用
+# ip 192.168.8.10，后面会作为旁路由网关使用
+# 网关 192.168.8.1 # ikuai lan口的ip
+# DNS 114.114.114.114
 ```
 
 
 ### 3、配置远程连接Openwrt
 第一种：DMZ主机连接
-&emsp;在ikuaiDMZ主机映射openwrt（192.168.8.5）。此时，通过ikuai的wan口获取的ip访问时，连接的就是openwrt的管理界面。
+&emsp;在ikuaiDMZ主机映射openwrt（192.168.8.10）。此时，通过ikuai的wan口获取的ip访问时，连接的就是openwrt的管理界面。
 
 ```mermaid
 flowchart 
@@ -340,7 +336,7 @@ direction TB
         5((DMZ主机))
         6(未配置)
         7(已配置)
-        8(配置:外网接口-外网地址wan1-<br/>内网地址192.168.8.5-其他默认)
+        8(配置:外网接口-外网地址wan1-<br/>内网地址192.168.8.10-其他默认)
         9(保存)
         5-.->6
         5-.->7
@@ -417,16 +413,19 @@ Device     Boot  Start      End  Sectors  Size Id Type
 
 *说明，MBR磁盘只能挂4个主分区，分区多是，最后一个建立扩展分区*
 
-web界面查看磁盘类型路径：
-openwrt -> 系统 -> 磁盘管理 -> 磁盘-> 分区表
+web界面查看磁盘类型路径：  
+
+openwrt管理界面 -> 系统 -> 磁盘管理 -> 磁盘-> 分区表
 
 4)、使用cfdisk分区操作   
-cfdisk命令含义：  
-↑↓上下键切换分区，
-new创建，
-resize改变大下，
-write生效，
-quit退出
+cfdisk命令含义：
+|键|作用|
+|-|-|  
+|↑↓键|上下键切换分区|  
+|new|创建分区|  
+|resize|改变大下|  
+|write|写入并生效|  
+|quit|退出|  
 ```shell
 # 对磁盘sda执行分区
 cfdisk /dev/sda
@@ -441,7 +440,8 @@ cfdisk /dev/sda
 # 分区完成后，点击write后再点击quit退出
 ```
 
-5)、格式化新建分区
+5)、格式化新建分区  
+
 注意Swap交换分区和普通分区的区别
 ```shell
 # 查看分区，确定要格式的盘
@@ -459,22 +459,49 @@ mkfs.ext4 /dev/sda{4,5,6} -y
 # 看到这个提示，不需要担心，这个是已经格式化的分区，跳过这个分区，继续下一个分区格式化即可
 ```
 
-### 2、Openwrt主界面操作
+### 2、Openwrt主界面操作  
 
-1)、挂载swap交换分区  
+1)、挂载swap交换分区   
+
+点击生成配置后，才可以看到新建的硬盘。
+
 - 挂载：
 ```mermaid
-graph LR 
-1(系统) -.->
-2(挂载点) -.->
-3(swap)-.->
-4(添加/新增)-.->
-5(启用此swap分区并选择对应设备)-.->
-6(保存并应用)
+flowchart
+subgraph 主界面
+direction TB
+0(Openwrt主界面)
+
+    subgraph 全局设置
+        direction LR
+        1(系统) -.->
+        2(挂载点) -.->
+        3(全局设置)-.点击.->
+        4("生成配置【必须】")
+    end
+
+    subgraph swap
+        direction LR
+        6(系统) -.->
+        7(挂载点) -.->
+        8(swap节点)
+    end
+
+    subgraph 新增
+        direction LR
+        10(添加/新增)-.->
+        11(勾选启用此swap分区)-.->
+        12(选择设备)-.->
+        13(保存并应用)
+    end
+
+    0-.找到.->全局设置-.找到.->swap-.点击.->新增
+end
 ```  
-- 查看：
+- 验证：  
 ```mermaid
 graph LR 
+0(Openwrt主界面)-.->
 1(状态) -.->
 2(概况) 
 4(成功)
@@ -485,40 +512,334 @@ graph LR
 2-.->3.2
 ```  
 
-2)、挂载swap交换分区  
+2)、挂载系统根目录(/)   
 
+点击生成配置后，才可以看到新建的硬盘。
 
+- 挂载：
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(Openwrt主界面)
 
+    subgraph 全局设置
+        direction LR
+        1(系统) -.->
+        2(挂载点) -.->
+        3(全局设置)-.点击.->
+        4("生成配置【必须】")
+    end
 
+    subgraph 挂载点
+        direction LR
+        6(系统) -.->
+        7(挂载点) -.->
+        8("“挂载点”节点")
+    end
 
+    subgraph 挂载项目
+        direction LR
+        10("1、勾选启用此挂载点")-.->
+        11("2、按UUID选择设备")-.->
+        12("3、挂载点选作为根文件系统(/)")
+        13("4、复制根目录准备中的shell命令备用（不能直接使用）")-.->
+        14("5、保存并应用")
+    end
 
-## 5、安装QEMU Guest Agent
-1、GUI安装  
-进入系统-软件包-动作  
-在过滤器搜索qemu-ga安装  
+    0-.找到.->全局设置-.找到.->挂载点-.点击挂载根目录设备的修改.->挂载项目
+end
+```  
 
-2、命令安装  
 ```shell
+# 根目录准备，确保使用以下命令来复制根文件系统：
+mkdir -p /tmp/introot
+mkdir -p /tmp/extroot
+mount --bind / /tmp/introot
+mount /dev/sda1 /tmp/extroot   # 需要修改设备名
+tar -C /tmp/introot -cvf - . | tar -C /tmp/extroot -xf -
+umount /tmp/introot
+umount /tmp/extroot
+```
+
+如果挂载的设备名是 /dev/sda3，上面的命令应该修改成下面：
+
+```shell
+# 根目录准备，确保使用以下命令来复制根文件系统：
+mkdir -p /tmp/introot
+mkdir -p /tmp/extroot
+mount --bind / /tmp/introot
+mount /dev/sda3 /tmp/extroot   # 这里修改了设备名
+tar -C /tmp/introot -cvf - . | tar -C /tmp/extroot -xf -
+umount /tmp/introot
+umount /tmp/extroot
+```
+
+然后在SSH客户端执行上面的命令，再回到Openwrt管理界面->系统->挂载点->挂载点节点后台页面，点击保存并应用。
+```mermaid
+graph LR
+op管理界面-.找到.->
+系统-.点击.->
+挂载点选项卡-.点击.->
+挂载点节点-.点击.->
+保存并应用
+```
+
+- 验证：  
+
+如果挂载了根目录，在Openwrt管理界面->系统->软件包->动作空间就会增加，所以可以这里可用空间。
+
+3)、挂载overlayfs   
+挂载之前可以通过命令查看下是否有文件，如果没有文件可以直接挂载，如果有文件，需要先备份文件，然后再挂载。
+```shell
+# 查看overlayfs下的文件
+
+ls -a /overlay
+```
+
+过程和挂载系统根目录过程一样
+
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(Openwrt主界面)
+
+    subgraph 全局设置
+        direction LR
+        1(系统) -.->
+        2(挂载点) -.->
+        3(全局设置)-.点击.->
+        4("生成配置【必须】")
+    end
+
+    subgraph 挂载点
+        direction LR
+        6(系统) -.->
+        7(挂载点) -.->
+        8("“挂载点”节点")
+    end
+
+    subgraph 挂载项目
+        direction LR
+        10("1、勾选启用此挂载点")-.->
+        11("2、按UUID选择设备")
+        12("3、挂载点作为外部pverlay使用（/overlay）")-.->
+        13("4、保存并应用")
+    end
+
+    0-.找到.->全局设置-.找到.->挂载点-.点击挂载根目录设备的修改.->挂载项目
+end
+```  
+
+4)、挂载Docker数据分区      
+通常，挂载了根目录或overlayfs，在Openwrt管理界面->系统->挂载点->已挂载的文件系统中可以看到已经挂载/opt/docker，所以可以省略。
+
+
+
+
+## 五、安装QEMU Guest Agent
+QEMU Guest Agent的软件名是qemu-ga。
+### 1、GUI安装  
+
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(Openwrt主界面)
+
+    subgraph 动作
+        direction LR
+        1(系统) -.->
+        2(软件包) -.->
+        3(动作)-.->
+        4(过滤器)
+    end
+
+    subgraph 过滤器
+        direction LR
+        6(过滤器) -.输入qemu点击.->
+        7(查找软件包)
+    end
+
+    subgraph 安装
+        direction LR
+        10(已安装软件包)
+        11(可用软件包)
+        12(安装)
+        13(重启)
+        10-.yes.->13
+        10-.no.->11-.点击.->12-.->13
+    end
+
+    0-.找到.->动作-.找到.->过滤器-.查看.->安装
+end
+```  
+ 
+
+### 2、命令安装  
+```shell
+# 安装QEMU Guest Agent
 opkg install qemu-ga
 
+# 安装后重启系统生效 
 reboot
 ```
-安装后重启系统生效  
+ 
 
 # 第三节 ikuai进一步配置
 
-## 一、NAT模式下被一级路由访问
+## 一、DHCP服务端
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(iKuai管理界面)
+
+    subgraph DHCP服务端
+        direction LR
+        1(网络设置) -.->
+        2(DHCP设置) -.->
+        3(DHCP服务端)
+    end
+
+    subgraph 添加
+        direction LR
+        5("客户端地址<br/>192.168.8.100-<br/>192.168.8.200") -.->
+        6("子网掩码<br/>255.255.255.0")-.->
+        7("网关<br/>192.168.8.10")-.->
+        8("DNS<br/>192.168.8.10/<br/>114.114.114.114")-.->
+        9("保存")
+    end
+
+    subgraph 启用
+        direction LR
+        10(勾选新建的DHCP服务器)-.->
+        11(点击启用)
+    end
+
+    0-.找到.->DHCP服务端-.点击.->添加-.点击.->启用
+end
+```  
 
 
+关键点：保留一部分ip作为静态使用；网关设置为op获取的ip地址；首选DNS也是op获取的IP地址
 
-# 第四节 设置op为ikuai的路由
-## 一、ikuai网关与DNS配置
+## 二、DNS设置
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(iKuai管理界面)
 
-## 二、op配置
-### 1、接口配置
+    subgraph DNS设置
+        direction LR
+        1(网络设置) -.->
+        2(DNS设置) -.->
+        3(DNS设置)
+    end
 
-### 3、防火墙与端口转发
+    subgraph 保存
+        direction LR
+        5("首选DNS<br/>192.168.8.10") -.->
+        6("备选DNS<br/>114.114.114.114")-.->
+        7("保存")
+    end
 
+    0-.找到.->DNS设置-.点击.->保存
+end
+```
+
+## 三、IPV6设置
+这一步，可以到最后再处理
+```mermaid
+flowchart
+subgraph 主界面
+direction TB
+0(iKuai管理界面)
+
+    subgraph IPv6
+        direction LR
+        1(网络设置) -.->
+        2(IPv6) -.->
+        3(IPv6设置)
+    end
+
+    subgraph 外网配置
+        direction LR
+        5("wan1") -.点击.->
+        6("启用")
+    end
+
+    subgraph 内网配置
+        direction LR
+        10(lan1)-.点击.->
+        11(启用)
+    end
+
+    0-.找到.->IPv6-.点击.->外网配置-.点击.->内网配置
+end
+```
+
+# 第四节 设置op为ikuai的旁路由
+
+## 一、op接口配置
+
+```mermaid
+graph LR
+0(Openwrt主界面)-.->
+1(网络)-.->
+2(接口)
+```
+
+1、删除/关闭多余的接口   
+
+如VPN、Docker等
+
+2、修改Lan口配置  
+
+|项|参数|
+|-|-|
+|协议|静态地址|
+|IPv4地址|192.168.8.10|
+|IPv4子网掩码|255.255.255.0|
+|IPv4网关|192.168.8.1(ikuai的lan口地址)|
+|IPv4广播|空|
+|使用自定义的DNS服务器|192.168.8.10/114.114.114.114|
+|基本设置|勾选忽略此接口|
+
+LAN设置注意：IPv4网关设置成iKuai网关，DHCP服务器勾选忽略此接口
+
+## 二、防火墙与端口转发  
+```mermaid
+graph LR
+0(Openwrt主界面)-.->
+1(网络)-.->
+2(防火墙)
+```
+1、openwrt lan口防火墙设置  
+
+在基本设置选项卡中，找到区域，把 lan => wan 全部设置接受
+
+*记得点击保存*
+
+2、openwrt wan口防火墙设置  
+
+在基本设置选项卡中，找到区域，把 wan => lan 全部设置接受
+
+*记得点击保存*
+
+3、openwrt 防火墙设置  
+
+在基本设置选项卡中，找到把基本设置，把其中的入站、出站、转发也全部设置接受
+
+*记得点击保存*
+
+4、openwrt 端口映射  
+
+在端口转发选项卡中，找到端口转发，建立一条Forward转发，把wan口所有匹配转发到Lan口
+
+*设置完以后，点击保存&应用  *  
 
 # 第五节 给OP设置DNS服务器
 
