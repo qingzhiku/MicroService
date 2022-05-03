@@ -6679,7 +6679,8 @@ address=/*.some.api.lab.com/10.11.12.123
 ## 2、带有界面的dnsmasq容器
 
 方案一：dnsmasq容器
-[参考文档](https://zhuanlan.zhihu.com/p/401495150)
+[参考文档1](https://zhuanlan.zhihu.com/p/401495150)
+[参考文档1](https://soulteary.com/2021/08/19/dns-for-local-development.html)
 
 
 
