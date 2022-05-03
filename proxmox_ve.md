@@ -3,47 +3,48 @@
 PVE实操过程实录
 
 # 第一节：PVE安装
+物理机安装pve
 pve  install  in hardware pc  
 
-1、download image  
+1、下载镜像文件 / download image  
 * url：<https://www.proxmox.com/en/downloads>   
 * version：[proxmox-ve_7.1-2.iso](https://www.proxmox.com/en/downloads?task=callelement&format=raw&item_id=638&element=f85c494b-2b32-4109-b8c1-083cca2b7db6&method=download&args[0]=894a15e72ec01863cc18396f276617b8) 
 
-2、write diver image with ultralISO  
+2、写盘 / write diver image with ultralISO  
 ~~~javascript
-// step:
+// 步骤 step:
 -> open ultraliso 
 -> start 
 -> write diver image
 ~~~
 
-3、insert usb   &   bios set  
+3、连接USB镜像与设置bios / insert usb   &   bios set  
 ```shell
 enable vt or vt-d  
 select boot
 ```
 
-4、start pc  
+4、启动电脑 / start pc  
 
-5、select first option " install proxmox ve "  
+5、选择安装install proxmox ve / select first option " install proxmox ve "  
 
-6、next-> -> -> ->   
+6、一直下一步 / next-> -> -> ->   
 
-7、target harddisk  
+7、目标选硬盘 / target harddisk  
 
-8、country->china  
+8、国家选中国 / country->china  
 ```shell
 time zone -> shanghai
 keyboard layout -> u.s.
 ```
 
-9、set password  and e-mail(can custom)  
+9、设置密码与邮箱 / set password  and e-mail(can custom)  
 
-10、set hostname  (eg.pve1.xxx.com) and set network and ip -> next  
+10、设置主机名与网络ip / set hostname  (eg.pve1.xxx.com) and set network and ip -> next  
 
-11、next-> -> -> -> wait....  
+11、一直下一步 / next-> -> -> -> wait....  
 
-12、open web console  
+12、打开web控制台 / open web console  
 ```shell
 # 查看web地址
 cat /etc/issue
@@ -65,9 +66,7 @@ configure this server - connect to:
 |port|8006|  
 
 # 第二节：PVE时区与时间管理
-## 一、时间设置   
-
-### 一）、设置时区  
+## 一、设置时区  
 一般安装时已经选择，无需再设置  
 
 1、 查看当前系统时间  
@@ -94,7 +93,7 @@ sudo cp /usr/share/zoneinfo/Asia/Shanghai  /etc/localtime
 ```shell
 date -R
 ```
-### 二）、手动校时 
+## 二、手动校时 
   
 ```shell
 # 修改日期
@@ -104,7 +103,7 @@ sudo date -s hh:mm:ss
 # 非常重要，如果没有这一步的话，后面时间还是不准  
 sudo hwclock --systohc 
 ```
-### 三）、网络校时 
+## 三、网络校时 
 
 ```shell
 apt install ntpdate -y
@@ -113,7 +112,7 @@ ntpdate 210.72.145.44    # 中国国家时间服务器: 210.72.145.44
 # ntp.ntsc.ac.cn
 ```
 
-### 四）、Debian自动网络校时  
+## 四、Debian自动网络校时  
 
 1、使用Linux crontab 用来定期执行更新时间
 |参数|作用|
@@ -169,7 +168,7 @@ crontab -e
 0 0 * * 1 ntpdate ntp.ntsc.ac.cn
 ```
 
-### 五）、Proxmox使用Chrony用作默认的NTP守护程序
+## 五、Proxmox使用Chrony用作默认的NTP守护程序
 
 1、安装chrony一般已经安装  
 
@@ -659,23 +658,80 @@ a2-.->a3
 
 4、再次查看磁盘状态  
 
-可以看到磁盘已经挂载就绪了
+可以看到磁盘已经挂载就绪了  
 
+# 第六节：利用虚拟机备份导入与导出  
+&emsp;利用虚拟的备份功能，对备份文件进行导入导出  
+## 一、备份虚拟机
+&emsp;通过虚拟机的备份功能，备份虚拟机到磁盘，在虚拟机备份或者磁盘备份中，可以看到已经备份的vma文件   
+备份过程：    
+``` mermaid
+graph TB
+1(登录后切到pve节点) -.->
+2(选择要备份的虚拟机) -.->
+3(切换到虚拟机备份选项卡)-.->
+4(点击右侧上方的立即备份)-.->
+5(备份参数设置 <br/> 存储:local   <br/>模式:停止 <br/> 压缩:无 <br/> 发送邮件至:无)-.->
+6(点击备份)-.->
+7(等待完成)
+```
+> &nbsp;
+> *说明：*  
+> 备份存储参数：  
+> 如果存储选local，备份位置一般在/var/lib/vz/dump
+> 如果存储在其他位置，如usb16g，备份位置一直在/mnt/pve/usb16g/dump/  
+> &nbsp;
 
+## 二、导出备份文件    
+&emsp;利用Ftp工具导出vma文件到本地  
+导出过程：  
+``` mermaid
+graph TB
+1(Ftp工具登录PVE)-.->
+2(找到备份文件目录) -.->
+3(找到备份vma文件) -.->
+4(下载到本地)
+```
 
-# 第五节：集群  
+## 三、导入备份文件  
+&emsp;通过Ftp工具把vma备份文件导入到pve备份文件目录，上传以后，通过pve备份选项卡可以查看到上传的备份文件。  
+导入过程：  
+``` mermaid
+graph TB
 
-## 一）创建集群  
+1(Ftp工具登录PVE)-.->
+2(找到备份文件目录)-.->
+3(上传vma备份文件到该目录)-.->
+4(等待上传完毕)
+```
+
+## 四、恢复还原虚拟机  
+&emsp;在存储备份选项卡找到备份的文件，点击还原/恢复，就可以恢复虚拟机
+``` mermaid
+graph TB
+
+1(在存储上找到备份文件)-.->
+2(点击还原/恢复按钮)-.->
+3(设置还原/恢复到的存储和VM ID)-.->
+4(点击恢复按钮开始恢复)-.->
+5(等待恢复完毕)
+```
+
+最后测试启动导入的虚拟机
+
+# 第七节：集群  
+
+## 一、创建集群  
 ```shell
 # 数据中心 -> 集群 -> 创建集群
 ```
 
-## 二）加入集群  
+## 二、加入集群  
 ```shell
 # 数据中心 -> 集群 -> 创建集群
 ```
 
-## 三）退出集群  
+## 三、退出集群  
 1、在待隔离节点上停止 pve-cluster 服务  
 ```shell
 systemctl stop pve-cluster.service
