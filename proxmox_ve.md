@@ -14,6 +14,7 @@ pve  install  in hardware pc
 ~~~javascript
 // 步骤 step:
 -> open ultraliso 
+// 写入方式 : RAW
 -> start 
 -> write diver image
 ~~~
