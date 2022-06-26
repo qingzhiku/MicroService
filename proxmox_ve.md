@@ -184,9 +184,10 @@ nano /etc/chrony/chrony.conf
 
 #添加
 #中国国家授时中心
-server ntp.ntsc.ac.cn iburst
-server ntp1.aliyun.com
+pool ntp.ntsc.ac.cn iburst
+pool ntp1.aliyun.com iburst
 ```
+使用nano编辑完之后，使用组合键 <kbd>Ctl</kbd>+<kbd>O</kbd> 保存,使用组合键 <kbd>Ctl</kbd>+<kbd>X</kbd> 退出
 
 3、重启chrony
 ```shell
