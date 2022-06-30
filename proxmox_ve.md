@@ -475,12 +475,22 @@ num：   1   2   3   4   5
 2、PVE桥接vlan  
 
 桥接步骤：
-> 位置：节点 -> 系统 -> 网络  
-> 网卡（eg.enp1s0）  
-> 创建  
-> Linux VLAN  
-> 命名(格式：[名称(vmbr[n])].[pvid]) eg.:vmbr2.10/vmbr3.20  
-> 保存  
+1. 设置VLAN桥接  
+>> 位置：节点 -> 系统 -> 网络  
+>> 网卡（eg.enp1s0）  
+>> 创建  
+>> Linux VLAN  
+>> 命名(格式：[名称(vmbr[n])].[pvid]) eg.:vmbr2.10/vmbr3.20  
+>> 保存   
+>>    
+2. 设置Bridge
+>> 位置：节点 -> 系统 -> 网络  
+>> 创建  
+>> Linux Bridge  
+>> 命名 vmbr[n]
+>> 桥接端口处填写VLAN的名称例如vmbr2.10
+>> 保存
+>>    
 
 ## 三、PVE使用无线网卡  
 
