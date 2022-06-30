@@ -488,7 +488,7 @@ num：   1   2   3   4   5
 >> 创建  
 >> Linux Bridge  
 >> 命名 vmbr[n]
->> 桥接端口处填写VLAN的名称例如vmbr2.10
+>> 桥接端口处填写VLAN的名称例如vmbr2.10  
 >> 保存
 >>    
 
