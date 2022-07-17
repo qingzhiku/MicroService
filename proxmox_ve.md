@@ -343,6 +343,9 @@ deb-src http://mirrors.aliyun.com/debian/ bullseye-backports main non-free contr
 # deb https://mirrors.ustc.edu.cn/proxmox/debian/pve bullseye pve-no-subscription
 # deb https://mirrors.tuna.tsinghua.edu.cn/proxmox/debian bullseye pve-no-subscription
 
+# pveceph
+deb https://mirrors.ustc.edu.cn/proxmox/debian/ceph-pacific bullseye main
+
 ```
 使用nano编辑完之后，使用组合键 <kbd>Ctl</kbd>+<kbd>O</kbd> 保存,使用组合键 <kbd>Ctl</kbd>+<kbd>X</kbd> 退出
 
@@ -355,6 +358,8 @@ echo 'deb https://mirrors.tuna.tsinghua.edu.cn/proxmox/debian bullseye pve-no-su
 
 4、Ceph源
 ```shell
+# 验证无效，因为总是被系统修改为默认源，
+# 直接添加到/etc/apt/sources.list,只能在客户端使用pveceph install 
 vi  /etc/apt/sources.list.d/ceph.list
 # nano  /etc/apt/sources.list.d/ceph.list
 ```
@@ -573,6 +578,33 @@ ifconfig
 
 # 第五节：存储  
 
+pve的储存配置文件在/etc/pve/storage.cfg
+
+```shell
+root@pve3:~# cat /etc/pve/storage.cfg
+dir: local
+	path /var/lib/vz
+	content iso,vztmpl,backup
+
+lvmthin: local-lvm
+	thinpool data
+	vgname pve
+	content images,rootdir
+
+# 目录的id
+dir: pve3-kingzhuxing-1t
+	# 目录路径
+	path /mnt/pve/pve3-kingzhuxing-1t
+  # 功能
+	content snippets,vztmpl,backup,images,rootdir,iso
+	is_mountpoint 1
+  # 节点id
+	nodes pve3
+  # 是否共享  
+  # shared 0
+
+```
+
 挂载磁盘方式：  
 > 本地磁盘：目录（常用）、LVM、ZFS  
 > 网络存储：ceph、iscsi、nfs、cifs  
@@ -677,6 +709,12 @@ e2-.->a2
 a3(创建)
 a2-.->a3
 ```
+
+> 
+> 创建目录配置说明：
+> 文件系统：选ext4
+> 名称：建议pve名-盘名-容量，例如pve1-samsung-1t
+> 
 
 4、再次查看磁盘状态  
 
@@ -911,6 +949,135 @@ cd /etc/pve/nodes
 rm -rf ***
 pvecm delnode NodeName(eg.pve2)
 ```   
+
+# 第十节：CEPH数据冗余
+
+前提
+1. 内存消耗4-6G
+2. 网络建议10GBE万兆交换机
+3. 不要与RAID同时使用
+
+## 一、pve ceph安装与配置   
+### 一）、安装
+先完成源配置再操作客户端安装：
+1. 必须在/etc/apt/sources.list添加源
+2. 在shell端使用命令安装pveceph install  
+
+```shell
+
+vi /etc/apt/sources.list
+
+# 必须在源里面添加
+
+# pveceph
+deb https://mirrors.ustc.edu.cn/proxmox/debian/ceph-pacific bullseye main
+
+# 更新以下
+apt update
+
+pveceph install # （不带版本号安装的是最新的nautilus版）
+
+```
+
+### 二）、pve ceph配置  
+回到Web GUI 界面，找到ceph会跳出配置，按照下面填写
+|项目|值|说明|
+|-|-|-|
+|Publick Network|eg.192.168.1.9|选择一个交互的网卡|
+|Cluster Network|不填|默认即可|
+|监控节点|eg.pve2|选择当前节点名|
+|Number of replicas|3|默认|
+|Minimum replicas|2|默认|
+
+
+## 二、监视器   
+在节点下找到Ceph的监视器，依次为每个pve节点创建监视器以及管理员
+
+## 三、OSD   
+在节点下找到Ceph的OSD，将空白盘添加为OSD，创建时，所有参数都是默认就可以了
+
+
+## 四、Ceph pool   
+可以理解为ceph的一种文件系统，相当于硬盘的意思，支持的文件有限，但是时最常用的。
+1. 默认会创建一个默认的"device_health_metrics"，不用管；
+2. 创建CephFS时会自动创建Ceph pool；
+3. 创建自己的Ceph pool，点击创建，一路默认就可以的，会自动创建一个RBD类别 的存储。
+
+位置：在节点下找到Ceph的Ceph pool 
+
+## 五、CephFS
+可以理解为ceph的一种文件系统，相当于硬盘的意思。
+
+位置：在节点下找到Ceph的五、CephFS     
+注意：至少先创建一个元数据服务器，才能创建CephFS   
+1. 先创建一个元数据服务器，会成为主服务器
+2. 创建CephFS，参数默认就可以了
+3. 为每个节点创建元数据服务器
+
+## 五、Ceph mgr-dashboard
+
+```shell
+# 查找Master
+ceph -s|grep mgr
+    mgr: pve1(active, since 9m), standbys: pve2, pve3
+
+# 这里显示pve1，于是找到pve1，执行下面命令
+apt install ceph-mgr-dashboard -y
+
+# 查看安装情况
+ceph mgr module ls | grep dashboard
+
+# 开启dashboard
+ceph mgr module enable dashboard --force
+
+# 创建证书
+ceph dashboard create-self-signed-cert
+
+# 取消https
+# ceph config set mgr mgr/dashboard/ssl false
+
+# 重启
+# ceph mgr module disable dashboard
+# ceph mgr module enable dashboard
+
+# 创建密码文本
+cat >/opt/secretkey<<EOF
+admin123
+EOF
+
+# 使用该文本作为密钥 
+# 以下两个都可以
+ceph dashboard set-login-credentials admin -i /opt/secretkey
+#ceph dashboard ac-user-create admin -i /opt/secretkey
+
+# 通过查看ceph mgr services命令输出地址
+ceph mgr services
+
+```
+
+## 六、开启prometheus监控
+```shell
+# 查找Master
+ceph -s|grep mgr
+    mgr: pve1(active, since 9m), standbys: pve2, pve3
+
+# 这里显示pve1，于是找到pve1，执行下面命令
+
+# 开启
+ceph mgr module enable prometheus
+
+# 查看地址
+ceph mgr services
+```
+
+# 第十节：HA故障转移
+
+## 一、创建组群
+
+## 二、添加资源
+
+## 三、漂移
+
 
 
 ## ）故障  
