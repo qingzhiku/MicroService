@@ -20,16 +20,17 @@ tar -zxvf nginx-1.22.0.tar.gz
 
 ```shell
 cd nginx-1.22.0
-./configure
+./configure --prefix=/usr/local/nginx --with-http_stub_status_module --with-http_gzip_static_module --with-stream --with-stream_ssl_module
 
 make 
 make install
 ```
 
 ```shell
-cd /usr/local/nginx/sbin/
+# cd /usr/local/nginx/sbin/
+# ./nginx
 
-./nginx
+/usr/local/nginx/sbin/nginx
 ```
 
 ```shell
