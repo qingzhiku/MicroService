@@ -17,6 +17,7 @@ wget -c https://nginx.org/download/nginx-1.22.0.tar.gz
 ```shell
 tar -zxvf nginx-1.22.0.tar.gz
 ```
+[支持模块](https://nginx.org/en/docs/)
 
 ```shell
 cd nginx-1.22.0
