@@ -222,19 +222,35 @@ vim nginx.service
 ```
 
 ```shell
-[Unit]
-Description=nginx - high performance web server
-Documentation=http://nginx.org/en/docs/
-After=network-online.target remote-fs.target nss-lookup.target
-Wants=network-online.target
+# [Unit]
+# Description=nginx - high performance web server
+# Documentation=http://nginx.org/en/docs/
+# After=network-online.target remote-fs.target nss-lookup.target
+# Wants=network-online.target
 
+# [Service]
+# Type=forking
+# PIDFile=/var/run/nginx.pid
+# ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx.conf
+# ExecReload=/bin/sh -c "/bin/kill -s HUP $(/bin/cat /var/run/nginx.pid)"
+# ExecStop=/bin/sh -c "/bin/kill -s TERM $(/bin/cat /var/run/nginx.pid)"
+
+# [Install]
+# WantedBy=multi-user.target
+
+# -----------------------------上面的会报错----------------------------------
+
+[Unit]
+Description=nginx
+After=network.target
+ 
 [Service]
 Type=forking
-PIDFile=/var/run/nginx.pid
-ExecStart=/usr/sbin/nginx -c /etc/nginx/nginx.conf
-ExecReload=/bin/sh -c "/bin/kill -s HUP $(/bin/cat /var/run/nginx.pid)"
-ExecStop=/bin/sh -c "/bin/kill -s TERM $(/bin/cat /var/run/nginx.pid)"
-
+ExecStart=/usr/local/nginx/sbin/nginx
+ExecReload=/usr/local/nginx/sbin/nginx -s reload
+ExecStop=/usr/local/nginx/sbin/nginx -s quit
+PrivateTmp=true
+ 
 [Install]
 WantedBy=multi-user.target
 ```
