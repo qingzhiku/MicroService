@@ -262,8 +262,9 @@ systemctl enable nginx.service
 
 systemctl status nginx.service
 
+ln -s /usr/local/nginx/sbin/nginx /usr/sbin/nginx
 
-./nginx -s reload
+nginx -s reload
 ```
 
 
