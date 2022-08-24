@@ -1,7 +1,8 @@
 on centos 8
 
 ```shell
-yum install gcc-c++
+yum install -y  gcc automake autoconf libtool make
+yum install -y gcc-c++
 yum install -y pcre pcre-devel
 yum install -y zlib zlib-devel
 yum install -y openssl openssl-devel
