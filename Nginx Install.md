@@ -22,7 +22,8 @@ tar -zxvf nginx-1.22.0.tar.gz
 
 ```shell
 cd nginx-1.22.0
-./configure --prefix=/usr/local/nginx --with-http_stub_status_module --with-http_gzip_static_module --with-stream --with-stream_ssl_module
+./configure --prefix=/usr/local/nginx --with-http_stub_status_module --with-http_gzip_static_module --without-http-cache --with-http_ssl_module  --with-ipv6 \
+--with-stream --with-stream_ssl_module
 
 make 
 make install
