@@ -268,4 +268,8 @@ ln -s /usr/local/nginx/sbin/nginx /usr/sbin/nginx
 nginx -s reload
 ```
 
+```shell
+# 查看端口侦听
 
+netstat -lntp
+```
