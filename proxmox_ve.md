@@ -1070,7 +1070,40 @@ ceph mgr module enable prometheus
 ceph mgr services
 ```
 
-# 第十节：HA故障转移
+# 第十节：PVE通过ACME获取免费证书
+
+## 一、数据中心添加acme
+
+### 1、添加账户
+1. 输入名称  # 随便
+2. 输入邮箱  # 随便
+3. ACME目录  # 随便
+4. 协议      # 同意
+5. 注册
+
+
+### 2、添加插件
+1. 插件ID    # 随便取一个名字
+2. DSN API   # 选择DSN服务商，例如
+   * 阿里云   ：   Alibaba Cloud DNS 
+   * 腾讯云   ：   dp
+   * 京东云   ：   jd
+3. API Data填写
+   - 第一种：带Data key
+     例如阿里云，选择api以后，下面会出现各个key的名字，直接按照名字填写就可以了。
+   
+   - 第二种：不带Data key
+     例如腾讯云，选择api以后，没有出现data的key，就需要按照[key=value]格式一个一个填写进去。例如DP_ID=123。提示value不要引号。
+
+## 二、在节点中添加凭据
+1. 路径
+   PVE节点 -> 系统 -> 证书 -> ACME -> ADD
+
+2. 添加ACME域名
+   添加 -> 选DNS -> 选填写的插件 -> 填写域名 -> 创建
+
+
+# 第十一节：HA故障转移
 
 ## 一、创建组群
 
@@ -1086,6 +1119,13 @@ ceph mgr services
 # 重启网页服务
 systemctl restart pveproxy pvedaemon
 ```
+
+
+
+
+
+
+
 
 
 
